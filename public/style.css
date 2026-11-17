@@ -1,0 +1,29 @@
+:root {
+  font: 16px/1.5 Inter, system-ui, sans-serif;
+  color: #142b28;
+  background: #f1f5ef;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 960px; margin: auto; padding: 2rem 1rem 4rem; }
+header { margin-bottom: 2rem; }
+.brand { color: #23634f; font-weight: 750; }
+h1 { font-size: clamp(2rem, 7vw, 4rem); line-height: 1.05; margin: .5rem 0; letter-spacing: -.05em; }
+h2, h3, h4, p { margin: 0 0 .65rem; }
+header > p { margin: .75rem 0; }
+.notice { color: #435951; font-size: .9rem; }
+section { background: white; border: 1px solid #d2ddd2; border-radius: 1rem; padding: clamp(1rem, 4vw, 1.75rem); margin-bottom: 1rem; }
+form, .rides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: .9rem; }
+label { display: grid; gap: .3rem; font-size: .9rem; font-weight: 650; }
+input, select, button { font: inherit; min-width: 0; border-radius: .5rem; padding: .55rem .7rem; }
+input, select { width: 100%; border: 1px solid #849b91; background: white; color: inherit; }
+button { justify-self: start; border: 0; background: #215f4e; color: white; font-weight: 700; cursor: pointer; }
+button:hover { background: #174638; }
+:focus-visible { outline: 3px solid #b05922; outline-offset: 3px; }
+.rides { margin: 1rem 0; align-items: start; }
+article { background: #edf4ef; padding: .9rem; border-radius: .6rem; margin-bottom: .6rem; }
+.booking { grid-template-columns: 1fr; }
+summary { cursor: pointer; font-weight: 700; }
+.offer { margin-top: .75rem; }
+[hidden] { display: none; }
+@media (max-width: 570px) { form, .rides { grid-template-columns: 1fr; } }
