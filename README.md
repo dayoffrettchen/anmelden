@@ -49,4 +49,4 @@ Lokal liefert die API einen Testlink direkt zurück. Im Onlinebetrieb wird er ü
 
 Bestehende lokale Installationen müssen erneut npm run db:migrate ausführen und ADMIN_EMAILS=mara@example.test in .dev.vars ergänzen.
 
-Automatisierte API-, Migrations- und Resend-Mocktests laufen mit `npm test` und bei jedem Pull Request über `.github/workflows/ci.yml`. Der echte Versand einer Einladung, ein vollständiger Browser-End-to-End-Test und das Cloudflare-Deployment müssen anschließend gesondert in einer Staging-Umgebung geprüft werden.
+Automatisierte API-, Migrations- und Resend-Mocktests laufen mit `npm test` und bei jedem Pull Request über `.github/workflows/ci.yml`. GitHub Actions startet zusätzlich einen echten lokalen Cloudflare Worker mit D1 und prüft im Chromium-Browser Ausflug anlegen, Einladen, Buchung, Stornierung und Zugriffsschutz. Der echte Versand einer Einladung über Resend und das produktive Cloudflare-Deployment müssen weiterhin in einer Staging-Umgebung geprüft werden.
