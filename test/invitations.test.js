@@ -56,6 +56,7 @@ test('an invited participant can reserve and cancel; organizer can manage partic
   assert.equal(alexTrip.rides[0].my_reservation_id, reservation.id);
   assert.equal(alexTrip.rides[0].booked, 1);
   assert.equal((await call(base + '/invites/alex%40example.test', 'mara', undefined, 'DELETE')).status, 409);
+  assert.equal((await call('/api/rides/' + ride.id, 'oskar', undefined, 'DELETE')).status, 409);
   assert.equal((await call('/api/reservations/' + reservation.id, 'oskar', undefined, 'DELETE')).status, 403);
   assert.equal((await call('/api/reservations/' + reservation.id, 'alex', undefined, 'DELETE')).status, 200);
   assert.equal((await call('/api/reservations/' + reservation.id, 'alex', undefined, 'DELETE')).status, 404);
@@ -76,6 +77,9 @@ test('an invited participant can reserve and cancel; organizer can manage partic
   assert.equal((await call(base + '/manage', 'oskar')).status, 403);
   assert.equal((await call(base + '/invites/friend%40example.test', 'oskar', undefined, 'DELETE')).status, 403);
   assert.equal((await call(base + '/invites/friend%40example.test', 'mara', undefined, 'DELETE')).status, 200);
+  assert.equal((await call('/api/rides/' + ride.id, 'oskar', undefined, 'DELETE')).status, 200);
+  assert.equal((await call(base + '/invites/oskar%40example.test', 'mara', undefined, 'DELETE')).status, 200);
+  assert.deepEqual(await (await call('/api/trips', 'oskar')).json(), []);
 });
 
 test('SQL migration preserves invitation access for existing riders and passengers', () => {
