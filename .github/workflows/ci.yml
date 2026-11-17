@@ -29,3 +29,27 @@ jobs:
         run: node --check public/app.js
       - name: Check Worker bundle
         run: npm run build
+      - name: Install Chromium and browser runner
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install chromium --with-deps
+      - name: Prepare local Cloudflare D1
+        run: |
+          cp .dev.vars.example .dev.vars
+          npx wrangler d1 migrations apply anmelden --local
+          npx wrangler d1 execute anmelden --local --file dev/seed.sql
+      - name: Start real Worker
+        run: |
+          nohup npx wrangler dev --ip 127.0.0.1 --port 8787 > /tmp/anmelden-worker.log 2>&1 &
+      - name: Real-browser end-to-end test
+        run: node test/browser-e2e.mjs
+      - name: Print Wrangler log on failure
+        if: failure()
+        run: cat /tmp/anmelden-worker.log || true
+      - name: Save browser screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-error-screenshot
+          path: e2e-failure.png
+          if-no-files-found: ignore
