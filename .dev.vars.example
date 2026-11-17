@@ -1,1 +1,2 @@
 LOCAL_PREVIEW=true
+ADMIN_EMAILS=mara@example.test

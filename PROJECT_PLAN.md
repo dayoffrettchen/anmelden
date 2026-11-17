@@ -12,9 +12,11 @@ Als Betrieb sind Cloudflare Workers, D1, Resend und openrouteservice vorgesehen.
 
 Die Oberfläche ist mit der Worker-API und D1 verbunden. Lokal sind drei Testpersonen auswählbar. Die API erstellt Ausflüge samt Adminzuordnung, Fahrtangebote und Reservierungen. SQL schützt gegen Überbuchung und doppelte Buchungen je Richtung. Wiederholte Buchungen derselben Fahrt werden erkannt.
 
+E-Mail-Anmeldung mit einmaligem Link, Sitzungen und Logout ist implementiert. ADMIN_EMAILS steuert das Anlegen von Ausflügen. Onlineversand benötigt die Resend-Konfiguration und APP_ORIGIN.
+
 ## Nächste Umsetzung
 
-Persönliche Anmeldelinks, Sitzungen und Adminberechtigungen implementieren. Danach Stornierung, Umbuchung, Resend und Google-Login ergänzen. Abholorte und Zeitfenster mit Routing prüfen und automatische Zuteilung ergänzen.
+Echten E-Mail-Versand und Browserablauf prüfen. Stornierung, Umbuchung, Verwaltung mehrerer Ausflugsadmins und Google-Login ergänzen. Abholorte und Zeitfenster mit Routing prüfen und automatische Zuteilung ergänzen.
 
 Automatische Umbuchungen brauchen eine Regel für unlösbare Änderungen, beispielsweise den Wegfall eines Autos. Bis diese Regel umgesetzt ist, darf eine Änderung keine bestätigte Buchung stillschweigend entfernen.
 

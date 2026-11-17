@@ -4,9 +4,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import worker from '../src/worker.js';
 
-function database() {
+export function database() {
   const db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0001_initial.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0002_auth.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../dev/seed.sql', import.meta.url), 'utf8'));
   function prepare(sql) {
     let args = [];
@@ -32,7 +33,7 @@ function database() {
 }
 
 test('API creates trips and rides, persists bookings and protects the final seat', async () => {
-  const env = { DB: database(), LOCAL_PREVIEW: 'true' };
+  const env = { DB: database(), LOCAL_PREVIEW: 'true', ADMIN_EMAILS: 'mara@example.test' };
   async function call(path, user, body) {
     return worker.fetch(new Request('http://localhost' + path, {
       method: body === undefined ? 'GET' : 'POST',
@@ -57,5 +58,36 @@ test('API creates trips and rides, persists bookings and protects the final seat
   assert.equal((await call('/api/trips', 'unknown')).status, 401);
   assert.equal((await call('/api/trips', 'mara', { title: ' ' })).status, 400);
   const response = await worker.fetch(new Request('https://example.com/api/trips'), env);
-  assert.equal(response.status, 503);
+  assert.equal(response.status, 401);
+});
+
+test('email login consumes links once, creates a session and revokes it on logout', async () => {
+  const env = { DB: database(), LOCAL_PREVIEW: 'true', ADMIN_EMAILS: 'mara@example.test' };
+  let cookie = '';
+  async function call(path, body) {
+    return worker.fetch(new Request('http://localhost/api/auth/' + path, {
+      method: body ? 'POST' : 'GET',
+      headers: { Origin: 'http://localhost', 'Content-Type': 'application/json', Cookie: cookie },
+      body: body ? JSON.stringify(body) : undefined,
+    }), env);
+  }
+  const sent = await call('request', { email: 'new@example.test', name: 'Neu' });
+  assert.equal(sent.status, 200);
+  const token = new URL((await sent.json()).previewLink).hash.slice(7);
+  assert.equal((await call('request', { email: 'new@example.test', name: 'Neu' })).status, 429);
+  const verified = await call('verify', { token });
+  assert.equal(verified.status, 200);
+  cookie = verified.headers.get('set-cookie').split(';')[0];
+  assert.match(verified.headers.get('set-cookie'), /HttpOnly/);
+  assert.equal((await call('verify', { token })).status, 400);
+  const state = await (await call('me')).json();
+  assert.equal(state.user.name, 'Neu');
+  assert.equal(state.user.isAdmin, false);
+  const denied = await worker.fetch(new Request('http://localhost/api/trips', {
+    method: 'POST', headers: { Origin: 'http://localhost', Cookie: cookie, 'Content-Type': 'application/json' },
+    body: '{}',
+  }), env);
+  assert.equal(denied.status, 403);
+  await call('logout', {});
+  assert.equal((await (await call('me')).json()).user, null);
 });

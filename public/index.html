@@ -13,10 +13,24 @@
     <p class="brand">Anmelden</p>
     <h1>Fahrgemeinschaften</h1>
     <p>Plane einen Ausflug und reserviere Plätze für Hin- und Rückfahrt.</p>
-    <p class="notice">Lokaler Funktionstest mit gemeinsamer Datenbank und Testpersonen.</p>
-  <label>Testperson <select id="identity"><option value="mara">Mara</option><option value="oskar">Oskar</option><option value="alex">Alex</option></select></label>
+    <p id="account"></p>
+    <button id="logout" hidden>Abmelden</button>
+  <label id="preview-control" hidden>Testperson <select id="identity"><option value="mara">Mara</option><option value="oskar">Oskar</option><option value="alex">Alex</option></select></label>
 </header>
-  <section aria-labelledby="create-title">
+  <section id="login-panel" hidden>
+    <h2>Anmelden</h2>
+    <form id="login-form">
+      <label>Dein Name <input name="name" required maxlength="100" autocomplete="name"></label>
+      <label>E-Mail <input name="email" type="email" required maxlength="254" autocomplete="email"></label>
+      <button>Anmeldelink senden</button>
+    </form>
+    <a id="preview-link" hidden>Lokalen Anmeldelink öffnen</a>
+  </section>
+  <section id="verify-panel" hidden>
+    <h2>Anmeldung bestätigen</h2>
+    <button id="verify">Jetzt anmelden</button>
+  </section>
+  <section id="create-panel" aria-labelledby="create-title" hidden>
     <h2 id="create-title">Ausflug anlegen</h2>
     <form id="trip-form">
       <label>Name des Ausflugs <input name="title" required maxlength="100"></label>

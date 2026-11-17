@@ -7,10 +7,15 @@ const directions = { outbound: 'Hinfahrt', return: 'Rückfahrt' };
 const dateFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long', timeStyle: 'short' });
 
 const identity = document.querySelector('#identity');
+let previewEnabled = false;
+let previewIdentity = true;
+let loginToken = new URLSearchParams(location.hash.slice(1)).get('login');
+if (loginToken) history.replaceState(null, '', location.pathname + location.search);
+document.querySelector('#verify-panel').hidden = !loginToken;
 async function request(path, body) {
   const response = await fetch(path, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Preview-User': identity.value },
+    headers: { 'Content-Type': 'application/json', ...(previewEnabled && previewIdentity ? { 'X-Preview-User': identity.value } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await response.json();
@@ -18,7 +23,15 @@ async function request(path, body) {
   return data;
 }
 async function refresh() {
-  render(await request('/api/trips'));
+  let state = await request('/api/auth/me');
+  previewEnabled = state.localPreview;
+  if (previewEnabled && previewIdentity && !state.user) state = await request('/api/auth/me');
+  document.querySelector('#preview-control').hidden = !previewEnabled;
+  document.querySelector('#login-panel').hidden = Boolean(state.user);
+  document.querySelector('#create-panel').hidden = !state.user?.isAdmin;
+  document.querySelector('#logout').hidden = !state.user;
+  document.querySelector('#account').textContent = state.user ? 'Angemeldet als ' + state.user.name : '';
+  render(state.user ? await request('/api/trips') : []);
 }
 
 function formValues(form) {
@@ -99,7 +112,44 @@ handleSubmit(tripForm, async values => {
   return 'Ausflug angelegt.';
 });
 identity.addEventListener('change', () => {
+  previewIdentity = true;
   status.textContent = '';
   refresh().catch(error => { status.textContent = error.message; });
 });
 refresh().catch(error => { status.textContent = error.message; });
+
+handleSubmit(document.querySelector('#login-form'), async values => {
+  const result = await request('/api/auth/request', values);
+  const link = document.querySelector('#preview-link');
+  link.hidden = !result.previewLink;
+  if (result.previewLink) link.href = result.previewLink;
+  return result.previewLink ? 'Lokaler Testlink erstellt.' : 'Der Anmeldelink wurde per E-Mail versendet.';
+});
+document.querySelector('#preview-link').addEventListener('click', event => {
+  event.preventDefault();
+  loginToken = new URL(event.currentTarget.href).hash.slice(7);
+  document.querySelector('#verify-panel').hidden = false;
+});
+document.querySelector('#verify').addEventListener('click', async event => {
+  event.currentTarget.disabled = true;
+  try {
+    await request('/api/auth/verify', { token: loginToken });
+    loginToken = null;
+    previewIdentity = false;
+    document.querySelector('#verify-panel').hidden = true;
+    await refresh();
+    status.textContent = 'Du bist angemeldet.';
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    document.querySelector('#verify').disabled = false;
+  }
+});
+document.querySelector('#logout').addEventListener('click', async () => {
+  try {
+    await request('/api/auth/logout', {});
+    previewIdentity = false;
+    await refresh();
+    status.textContent = 'Du bist abgemeldet.';
+  } catch (error) { status.textContent = error.message; }
+});
