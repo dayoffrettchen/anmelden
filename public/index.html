@@ -48,6 +48,20 @@
     <h2></h2>
     <p class="details"></p>
     <div class="rides"></div>
+    <details class="manage" hidden>
+      <summary>Teilnehmer und Buchungen verwalten</summary>
+      <p class="owner"></p>
+      <form class="invite-form">
+        <label>Teilnehmer per E-Mail einladen
+          <input name="email" type="email" maxlength="254" autocomplete="off" required>
+        </label>
+        <button>Einladung senden</button>
+      </form>
+      <h3>Einladungen</h3>
+      <ul class="invite-list"></ul>
+      <h3>Reservierungen</h3>
+      <ul class="reservation-list"></ul>
+    </details>
     <details>
       <summary>Fahrt anbieten</summary>
       <form class="offer">
@@ -66,6 +80,7 @@
     <form class="booking">
       <button>Platz reservieren</button>
     </form>
+    <button class="cancel-booking" hidden>Meine Reservierung stornieren</button>
   </article>
 </template>
 </body>
