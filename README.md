@@ -25,7 +25,18 @@ Die API-Tests verwenden einen SQLite-Adapter für D1. Sie prüfen Erstellen, Buc
 
 ## Cloudflare anbinden
 
-In wrangler.jsonc steht eine Platzhalter-Datenbank-ID. Nach Erstellung der D1-Datenbank muss deren ID eingetragen werden. Für den Onlinebetrieb LOCAL_PREVIEW weglassen. RESEND_API_KEY als Worker-Secret setzen. EMAIL_FROM muss eine bei Resend freigegebene Absenderadresse sein, APP_ORIGIN die vollständige HTTPS-Adresse der App. ADMIN_EMAILS enthält die kommaseparierten E-Mail-Adressen der Personen, die Ausflüge anlegen dürfen. Diese Konfiguration steht noch aus.
+Die D1-Datenbank-ID wird in wrangler.jsonc konfiguriert. Für den Onlinebetrieb LOCAL_PREVIEW weglassen. RESEND_API_KEY als Worker-Secret setzen. EMAIL_FROM muss eine bei Resend freigegebene Absenderadresse sein, APP_ORIGIN die vollständige HTTPS-Adresse der App. ADMIN_EMAILS enthält die kommaseparierten E-Mail-Adressen der Personen, die Ausflüge anlegen dürfen.
+
+Vor einem Deployment mit privaten Ausflügen zuerst die D1-Migration in der Cloud ausführen (empfohlen: vorher Datenbanksicherung/Export):
+
+```sh
+npx wrangler d1 migrations apply anmelden --remote
+npm test
+npm run build
+npx wrangler deploy
+```
+
+Die Migration 0003 legt Einladungen an und übernimmt automatisch Fahrer und Fahrgäste bereits bestehender Ausflüge. Sonstige frühere Betrachter werden bewusst nicht übernommen. In der Produktion muss der Resend-API-Key bereits als Secret hinterlegt sein. Ohne Migration wird die neue API nicht funktionieren.
 
 Vorherige Browser-Daten der Vorschau bleiben im localStorage erhalten. Sie werden nicht automatisch in D1 übernommen, da ihnen verifizierte Benutzeridentitäten fehlen.
 
@@ -34,8 +45,8 @@ Vorherige Browser-Daten der Vorschau bleiben im localStorage erhalten. Sie werde
 
 Die Oberfläche fordert einen Link mit Name und E-Mail an. Der Link ist 15 Minuten gültig und wird nach dem Öffnen ausdrücklich bestätigt. Danach besteht eine siebentägige Sitzung. Abmelden widerruft die Sitzung auf dem Server. In der Datenbank liegen Hashes der Link- und Sitzungstoken.
 
-Lokal liefert die API einen Testlink direkt zurück. Im Onlinebetrieb wird er über Resend versendet. Die API begrenzt Linkanforderungen je E-Mail auf eine pro Minute. Google-Login, Einladungen je Ausflug und die Verwaltung weiterer Ausflugsadmins über die Oberfläche sind noch offen. Angemeldete Personen können derzeit alle Ausflüge sehen.
+Lokal liefert die API einen Testlink direkt zurück. Im Onlinebetrieb wird er über Resend versendet. Die API begrenzt Linkanforderungen je E-Mail auf eine pro Minute. Ausflüge sind nur der ausflugserstellenden Person, den Ausflugsorganisatoren und eingeladenen E-Mail-Adressen zugänglich. Einladungen werden per Resend verschickt, Zugriffe ausschließlich im Worker geprüft. Veranstalter sehen eingeladene Personen und Buchungen, können Einladungen widerrufen und Reservierungen stornieren. Erstellende Personen können eingeladene Personen zu Organisatoren ernennen. Teilnehmer können ihre eigenen Reservierungen stornieren. Einladungen von Personen mit bestehenden Fahrten oder Reservierungen können nicht entfernt werden, bis diese Verpflichtungen geklärt sind. Fahrer und Organisatoren können Fahrtangebote ohne bestehende Reservierungen entfernen. Google-Login ist noch offen.
 
 Bestehende lokale Installationen müssen erneut npm run db:migrate ausführen und ADMIN_EMAILS=mara@example.test in .dev.vars ergänzen.
 
-Der echte E-Mail-Versand und die Browserbedienung wurden in dieser Umgebung noch nicht geprüft.
+Automatisierte API-, Migrations- und Resend-Mocktests laufen mit `npm test` und bei jedem Pull Request über `.github/workflows/ci.yml`. GitHub Actions startet zusätzlich einen echten lokalen Cloudflare Worker mit D1 und prüft im Chromium-Browser Ausflug anlegen, Einladen, Buchung, Stornierung und Zugriffsschutz. Der echte Versand einer Einladung über Resend und das produktive Cloudflare-Deployment müssen weiterhin in einer Staging-Umgebung geprüft werden.

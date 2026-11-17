@@ -8,6 +8,7 @@ export function database() {
   const db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0001_initial.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0002_auth.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0003_invites.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../dev/seed.sql', import.meta.url), 'utf8'));
   function prepare(sql) {
     let args = [];
@@ -49,6 +50,10 @@ test('API creates trips and rides, persists bookings and protects the final seat
   const ride = await rideResponse.json();
   const route = '/api/rides/' + ride.id + '/reservations';
   assert.equal((await call(route, 'mara', {})).status, 409);
+  assert.equal((await call(route, 'oskar', {})).status, 404);
+  assert.deepEqual(await (await call('/api/trips', 'oskar')).json(), []);
+  assert.equal((await call('/api/trips/' + trip.id + '/invites', 'mara', { email: 'oskar@example.test' })).status, 201);
+  assert.equal((await call('/api/trips/' + trip.id + '/invites', 'mara', { email: 'alex@example.test' })).status, 201);
   const results = await Promise.all([call(route, 'oskar', {}), call(route, 'alex', {})]);
   assert.deepEqual(results.map(result => result.status).sort(), [201, 409]);
   const winner = results[0].status === 201 ? 'oskar' : 'alex';

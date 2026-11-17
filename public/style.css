@@ -27,3 +27,13 @@ summary { cursor: pointer; font-weight: 700; }
 .offer { margin-top: .75rem; }
 [hidden] { display: none; }
 @media (max-width: 570px) { form, .rides { grid-template-columns: 1fr; } }
+
+.manage { margin: 1rem 0; padding: .8rem 0; border-top: 1px solid #d2ddd2; }
+.manage form { margin: .75rem 0 1.25rem; }
+.manage h3 { margin-top: 1.2rem; }
+.manage ul { list-style: none; padding: 0; margin: .4rem 0; display: grid; gap: .6rem; }
+.manage li { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .65rem 0; border-bottom: 1px solid #d2ddd2; overflow-wrap: anywhere; }
+.manage li span { flex: 1; min-width: 13rem; }
+.manage li select { width: auto; max-width: 13rem; }
+.manage li button, .cancel-booking { background: #69513a; }
+.cancel-booking { margin-top: .5rem; }

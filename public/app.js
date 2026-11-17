@@ -12,9 +12,9 @@ let previewIdentity = true;
 let loginToken = new URLSearchParams(location.hash.slice(1)).get('login');
 if (loginToken) history.replaceState(null, '', location.pathname + location.search);
 document.querySelector('#verify-panel').hidden = !loginToken;
-async function request(path, body) {
+async function request(path, body, method = body === undefined ? 'GET' : 'POST') {
   const response = await fetch(path, {
-    method: body === undefined ? 'GET' : 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', ...(previewEnabled && previewIdentity ? { 'X-Preview-User': identity.value } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -31,7 +31,7 @@ async function refresh() {
   document.querySelector('#create-panel').hidden = !state.user?.isAdmin;
   document.querySelector('#logout').hidden = !state.user;
   document.querySelector('#account').textContent = state.user ? 'Angemeldet als ' + state.user.name : '';
-  render(state.user ? await request('/api/trips') : []);
+  await render(state.user ? await request('/api/trips') : []);
 }
 
 function formValues(form) {
@@ -58,30 +58,144 @@ function handleSubmit(form, update) {
   });
 }
 
+async function perform(button, callback) {
+  button.disabled = true;
+  try {
+    const message = await callback();
+    await refresh();
+    status.textContent = message;
+    status.tabIndex = -1;
+    status.focus();
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderRide(trip, ride) {
   const row = rideTemplate.content.cloneNode(true);
-  row.querySelector('h4').textContent = `${ride.driver} · ab ${ride.pickup}`;
+  row.querySelector('h4').textContent = ride.driver + ' · ab ' + ride.pickup;
   const remaining = ride.capacity - ride.booked;
   row.querySelector('.availability').textContent = remaining === 0
     ? 'Ausgebucht'
-    : remaining === 1 ? '1 freier Platz' : `${remaining} freie Plätze`;
+    : remaining === 1 ? '1 freier Platz' : remaining + ' freie Plätze';
   const booking = row.querySelector('.booking');
-  booking.hidden = remaining === 0;
+  booking.hidden = remaining === 0 || ride.isMine || Boolean(ride.my_reservation_id);
   handleSubmit(booking, async () => {
     await request('/api/rides/' + ride.id + '/reservations', {});
     return 'Platz bei ' + ride.driver + ' reserviert (' + directions[ride.direction] + ').';
   });
+  const cancel = row.querySelector('.cancel-booking');
+  cancel.hidden = !ride.my_reservation_id;
+  if (ride.my_reservation_id) {
+    cancel.addEventListener('click', () => perform(cancel, async () => {
+      await request('/api/reservations/' + ride.my_reservation_id, undefined, 'DELETE');
+      return 'Reservierung storniert.';
+    }));
+  }
+  const removeRide = row.querySelector('.remove-ride');
+  removeRide.hidden = !(ride.isMine || trip.isOrganizer);
+  removeRide.disabled = ride.booked > 0;
+  if (ride.booked > 0) removeRide.title = 'Zuerst müssen Reservierungen storniert werden.';
+  removeRide.addEventListener('click', () => {
+    if (!confirm('Fahrtangebot wirklich entfernen?')) return;
+    perform(removeRide, async () => {
+      await request('/api/rides/' + ride.id, undefined, 'DELETE');
+      return 'Fahrtangebot entfernt.';
+    });
+  });
   return row;
 }
 
-function render(trips) {
+async function renderManagement(trip, root) {
+  const base = '/api/trips/' + encodeURIComponent(trip.id);
+  const data = await request(base + '/manage');
+  root.querySelector('.owner').textContent =
+    'Organisiert von ' + data.owner.name + ' (' + data.owner.email + ')';
+
+  handleSubmit(root.querySelector('.invite-form'), async values => {
+    const result = await request(base + '/invites', values);
+    return result.previewOnly ? 'Einladung im lokalen Testmodus gespeichert.' : 'Einladung gesendet.';
+  });
+
+  const inviteList = root.querySelector('.invite-list');
+  if (!data.invites.length) {
+    const empty = document.createElement('li');
+    empty.textContent = 'Noch niemand eingeladen.';
+    inviteList.append(empty);
+  }
+  for (const invite of data.invites) {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = invite.email + (invite.registered_name ? ' (' + invite.registered_name + ')' : ' (noch nicht angemeldet)');
+    item.append(label);
+    const role = document.createElement('select');
+    role.setAttribute('aria-label', 'Rolle für ' + invite.email);
+    for (const [value, title] of [['participant', 'Teilnehmer'], ['organizer', 'Organisator']]) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = title;
+      role.append(opt);
+    }
+    role.value = invite.role;
+    role.disabled = !trip.isCreator;
+    if (trip.isCreator) {
+      role.addEventListener('change', () => perform(role, async () => {
+        await request(base + '/invites/' + encodeURIComponent(invite.email) + '/role', { role: role.value });
+        return 'Rolle geändert.';
+      }));
+    }
+    item.append(role);
+    const remove = document.createElement('button');
+    remove.textContent = 'Einladung entfernen';
+    remove.addEventListener('click', () => {
+      if (!confirm('Einladung für ' + invite.email + ' entfernen?')) return;
+      perform(remove, async () => {
+        await request(base + '/invites/' + encodeURIComponent(invite.email), undefined, 'DELETE');
+        return 'Einladung entfernt.';
+      });
+    });
+    item.append(remove);
+    inviteList.append(item);
+  }
+
+  const bookings = root.querySelector('.reservation-list');
+  if (!data.reservations.length) {
+    const empty = document.createElement('li');
+    empty.textContent = 'Noch keine Reservierungen.';
+    bookings.append(empty);
+  }
+  for (const reservation of data.reservations) {
+    const item = document.createElement('li');
+    const detail = document.createElement('span');
+    detail.textContent = reservation.name + ' (' + reservation.email + ') · ' +
+      directions[reservation.direction] + ' ab ' + reservation.pickup +
+      ' bei ' + reservation.driver;
+    item.append(detail);
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Reservierung stornieren';
+    cancel.addEventListener('click', () => {
+      if (!confirm('Reservierung von ' + reservation.name + ' wirklich stornieren?')) return;
+      perform(cancel, async () => {
+        await request('/api/reservations/' + reservation.id, undefined, 'DELETE');
+        return 'Reservierung storniert.';
+      });
+    });
+    item.append(cancel);
+    bookings.append(item);
+  }
+}
+
+async function render(trips) {
   tripList.replaceChildren();
   for (const trip of trips) {
     const card = tripTemplate.content.cloneNode(true);
     card.querySelector('h2').textContent = trip.title;
     const arrival = dateFormat.format(new Date(trip.arrival));
-    const stop = trip.stop ? ` · Zwischenstopp: ${trip.stop}` : '';
-    card.querySelector('.details').textContent = `${trip.destination} · Ankunft ${arrival}${stop}`;
+    const stop = trip.stop ? ' · Zwischenstopp: ' + trip.stop : '';
+    card.querySelector('.details').textContent =
+      trip.destination + ' · Ankunft ' + arrival + stop;
 
     const rides = card.querySelector('.rides');
     for (const [direction, label] of Object.entries(directions)) {
@@ -99,6 +213,9 @@ function render(trips) {
       rides.append(group);
     }
 
+    const manage = card.querySelector('.manage');
+    manage.hidden = !trip.isOrganizer;
+    if (trip.isOrganizer) await renderManagement(trip, manage);
     handleSubmit(card.querySelector('.offer'), async values => {
       await request('/api/trips/' + trip.id + '/rides', { ...values, capacity: Number(values.capacity) });
       return directions[values.direction] + ' hinzugefügt.';
