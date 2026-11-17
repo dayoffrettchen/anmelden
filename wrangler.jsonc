@@ -6,7 +6,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "anmelden",
-    "database_id": "00000000-0000-0000-0000-000000000000",
+    "database_id": "6af35289-79d8-440d-aa16-2da59ab69508",
     "migrations_dir": "migrations"
   }]
 }
