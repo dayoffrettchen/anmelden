@@ -94,6 +94,17 @@ function renderRide(trip, ride) {
       return 'Reservierung storniert.';
     }));
   }
+  const removeRide = row.querySelector('.remove-ride');
+  removeRide.hidden = !(ride.isMine || trip.isOrganizer);
+  removeRide.disabled = ride.booked > 0;
+  if (ride.booked > 0) removeRide.title = 'Zuerst müssen Reservierungen storniert werden.';
+  removeRide.addEventListener('click', () => {
+    if (!confirm('Fahrtangebot wirklich entfernen?')) return;
+    perform(removeRide, async () => {
+      await request('/api/rides/' + ride.id, undefined, 'DELETE');
+      return 'Fahrtangebot entfernt.';
+    });
+  });
   return row;
 }
 
