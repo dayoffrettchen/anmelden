@@ -42,7 +42,7 @@ jobs:
         run: |
           nohup npx wrangler dev --ip 127.0.0.1 --port 8787 > /tmp/anmelden-worker.log 2>&1 &
       - name: Real-browser end-to-end test
-        run: node test/browser-e2e.mjs
+        run: node scripts/browser-e2e.mjs
       - name: Print Wrangler log on failure
         if: failure()
         run: cat /tmp/anmelden-worker.log || true
