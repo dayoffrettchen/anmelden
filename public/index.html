@@ -13,8 +13,9 @@
     <p class="brand">Anmelden</p>
     <h1>Fahrgemeinschaften</h1>
     <p>Plane einen Ausflug und reserviere Plätze für Hin- und Rückfahrt.</p>
-    <p class="notice">Lokale Vorschau. Eingaben bleiben in diesem Browser.</p>
-  </header>
+    <p class="notice">Lokaler Funktionstest mit gemeinsamer Datenbank und Testpersonen.</p>
+  <label>Testperson <select id="identity"><option value="mara">Mara</option><option value="oskar">Oskar</option><option value="alex">Alex</option></select></label>
+</header>
   <section aria-labelledby="create-title">
     <h2 id="create-title">Ausflug anlegen</h2>
     <form id="trip-form">
@@ -37,7 +38,6 @@
       <summary>Fahrt anbieten</summary>
       <form class="offer">
         <label>Richtung <select name="direction"><option value="outbound">Hinfahrt</option><option value="return">Rückfahrt</option></select></label>
-        <label>Name <input name="driver" required maxlength="100" autocomplete="name"></label>
         <label>Abfahrts- oder Abholort <input name="pickup" required maxlength="150"></label>
         <label>Freie Plätze <input name="capacity" type="number" min="1" max="8" value="1" required></label>
         <button>Fahrt anbieten</button>
@@ -50,7 +50,6 @@
     <h4></h4>
     <p class="availability"></p>
     <form class="booking">
-      <label>Dein Name <input name="name" required maxlength="100" autocomplete="name"></label>
       <button>Platz reservieren</button>
     </form>
   </article>

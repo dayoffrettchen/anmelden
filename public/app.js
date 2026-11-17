@@ -1,6 +1,3 @@
-import { reserveSeat } from './model.js';
-
-const storageKey = 'anmelden.local-trips.v1';
 const tripForm = document.querySelector('#trip-form');
 const tripList = document.querySelector('#trips');
 const status = document.querySelector('#status');
@@ -9,12 +6,19 @@ const rideTemplate = document.querySelector('#ride-template');
 const directions = { outbound: 'Hinfahrt', return: 'Rückfahrt' };
 const dateFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long', timeStyle: 'short' });
 
-function readTrips() {
-  return JSON.parse(localStorage.getItem(storageKey) ?? '[]');
+const identity = document.querySelector('#identity');
+async function request(path, body) {
+  const response = await fetch(path, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Preview-User': identity.value },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? 'Anfrage fehlgeschlagen.');
+  return data;
 }
-
-function saveTrips(trips) {
-  localStorage.setItem(storageKey, JSON.stringify(trips));
+async function refresh() {
+  render(await request('/api/trips'));
 }
 
 function formValues(form) {
@@ -22,19 +26,21 @@ function formValues(form) {
 }
 
 function handleSubmit(form, update) {
-  form.addEventListener('submit', event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
+    const button = form.querySelector('button');
+    button.disabled = true;
     try {
-      const trips = readTrips();
-      const message = update(trips, formValues(form));
-      saveTrips(trips);
+      const message = await update(formValues(form));
       form.reset();
-      render(trips);
+      await refresh();
       status.textContent = message;
       status.tabIndex = -1;
       status.focus();
     } catch (error) {
       status.textContent = error.message;
+    } finally {
+      button.disabled = false;
     }
   });
 }
@@ -42,17 +48,15 @@ function handleSubmit(form, update) {
 function renderRide(trip, ride) {
   const row = rideTemplate.content.cloneNode(true);
   row.querySelector('h4').textContent = `${ride.driver} · ab ${ride.pickup}`;
-  const remaining = ride.capacity - ride.passengers.length;
+  const remaining = ride.capacity - ride.booked;
   row.querySelector('.availability').textContent = remaining === 0
     ? 'Ausgebucht'
     : remaining === 1 ? '1 freier Platz' : `${remaining} freie Plätze`;
   const booking = row.querySelector('.booking');
   booking.hidden = remaining === 0;
-  handleSubmit(booking, (trips, values) => {
-    const currentTrip = trips.find(item => item.id === trip.id);
-    const rideIndex = currentTrip.rides.findIndex(item => item.id === ride.id);
-    currentTrip.rides[rideIndex] = reserveSeat(currentTrip.rides[rideIndex], values.name);
-    return `Platz für ${values.name} bei ${ride.driver} reserviert (${directions[ride.direction]}).`;
+  handleSubmit(booking, async () => {
+    await request('/api/rides/' + ride.id + '/reservations', {});
+    return 'Platz bei ' + ride.driver + ' reserviert (' + directions[ride.direction] + ').';
   });
   return row;
 }
@@ -82,25 +86,20 @@ function render(trips) {
       rides.append(group);
     }
 
-    handleSubmit(card.querySelector('.offer'), (trips, values) => {
-      if (!values.driver || !values.pickup) throw new Error('Gib Name und Abholort ein.');
-      const currentTrip = trips.find(item => item.id === trip.id);
-      currentTrip.rides.push({
-        ...values, capacity: Number(values.capacity), id: crypto.randomUUID(), passengers: [],
-      });
-      return `${directions[values.direction]} hinzugefügt.`;
+    handleSubmit(card.querySelector('.offer'), async values => {
+      await request('/api/trips/' + trip.id + '/rides', { ...values, capacity: Number(values.capacity) });
+      return directions[values.direction] + ' hinzugefügt.';
     });
     tripList.append(card);
   }
 }
 
-handleSubmit(tripForm, (trips, values) => {
-  if (!values.title || !values.destination) throw new Error('Gib einen Titel und ein Ziel ein.');
-  trips.unshift({ ...values, id: crypto.randomUUID(), rides: [] });
+handleSubmit(tripForm, async values => {
+  await request('/api/trips', { ...values, arrival: new Date(values.arrival).toISOString() });
   return 'Ausflug angelegt.';
 });
-
-render(readTrips());
-window.addEventListener('storage', event => {
-  if (event.key === storageKey || event.key === null) render(readTrips());
+identity.addEventListener('change', () => {
+  status.textContent = '';
+  refresh().catch(error => { status.textContent = error.message; });
 });
+refresh().catch(error => { status.textContent = error.message; });

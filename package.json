@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "dev": "wrangler dev --ip 127.0.0.1",
+    "db:migrate": "wrangler d1 migrations apply anmelden --local",
+    "db:seed": "wrangler d1 execute anmelden --local --file dev/seed.sql",
+    "build": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   }
 }
