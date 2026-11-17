@@ -139,6 +139,18 @@ export async function tripsRoute(request, env, url, user) {
     return json({ id }, 201);
   }
 
+  const removeRide = path.match(/^\/api\/rides\/([^/]+)$/);
+  if (removeRide && request.method === 'DELETE') {
+    const ride = await env.DB.prepare('SELECT id, trip_id, driver_id FROM rides WHERE id = ?').bind(removeRide[1]).first();
+    if (!ride) throw new HttpError(404, 'Fahrt nicht gefunden.');
+    const trip = await tripAccess(env, ride.trip_id, user);
+    if (ride.driver_id !== user.id && !trip.organizer) throw new HttpError(403, 'Nur Fahrer oder Organisatoren können eine Fahrt entfernen.');
+    const booked = await env.DB.prepare('SELECT COUNT(*) AS n FROM reservations WHERE ride_id = ?').bind(ride.id).first();
+    if (booked.n) throw new HttpError(409, 'Zuerst die Reservierungen dieser Fahrt stornieren.');
+    await env.DB.prepare('DELETE FROM rides WHERE id = ?').bind(ride.id).run();
+    return json({ removed: true });
+  }
+
   const cancel = path.match(/^\/api\/reservations\/([^/]+)$/);
   if (cancel && request.method === 'DELETE') {
     const reservation = await env.DB.prepare('SELECT id, trip_id, passenger_id FROM reservations WHERE id = ?').bind(cancel[1]).first();
