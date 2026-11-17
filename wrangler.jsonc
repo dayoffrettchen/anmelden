@@ -2,11 +2,21 @@
   "name": "anmelden",
   "main": "src/worker.js",
   "compatibility_date": "2026-11-17",
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "anmelden",
-    "database_id": "6af35289-79d8-440d-aa16-2da59ab69508",
-    "migrations_dir": "migrations"
-  }]
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "anmelden",
+      "database_id": "6af35289-79d8-440d-aa16-2da59ab69508",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "keep_vars": true,
+  "workers_dev": true
 }

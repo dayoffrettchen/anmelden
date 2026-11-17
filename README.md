@@ -50,3 +50,44 @@ Lokal liefert die API einen Testlink direkt zurück. Im Onlinebetrieb wird er ü
 Bestehende lokale Installationen müssen erneut npm run db:migrate ausführen und ADMIN_EMAILS=mara@example.test in .dev.vars ergänzen.
 
 Automatisierte API-, Migrations- und Resend-Mocktests laufen mit `npm test` und bei jedem Pull Request über `.github/workflows/ci.yml`. GitHub Actions startet zusätzlich einen echten lokalen Cloudflare Worker mit D1 und prüft im Chromium-Browser Ausflug anlegen, Einladen, Buchung, Stornierung und Zugriffsschutz. Der echte Versand einer Einladung über Resend und das produktive Cloudflare-Deployment müssen weiterhin in einer Staging-Umgebung geprüft werden.
+
+
+## Cloudflare-Deployment über GitHub Actions (manuell)
+
+Der Workflow .github/workflows/cloudflare-production.yml bietet drei getrennte
+Aktionen: inspect (D1-Schema und noch offene Migrationen anzeigen),
+migrate (remote D1-Migrationen anwenden) und deploy (Worker deployen).
+Er läuft nicht automatisch bei einem Push. Nur der Branch main ist zugelassen.
+
+### Einmalige Einrichtung
+
+1. In Cloudflare einen API-Token nur für das zugehörige Konto anlegen, mit
+   Account > Workers Scripts > Edit und Account > D1 > Edit
+   (soweit verfügbar weiter auf den Worker anmelden eingrenzen).
+2. In GitHub unter Settings > Environments ein Environment namens
+   cloudflare-production anlegen. Optional Required Reviewer konfigurieren.
+3. Dort Environment secrets anlegen:
+   - CLOUDFLARE_API_TOKEN: der neue API-Token, niemals ins Repository committen.
+   - CLOUDFLARE_ACCOUNT_ID: die Cloudflare Account ID (nicht die D1-Database-ID).
+4. Auf Actions > Cloudflare Produktion (manuell) > Run workflow starten.
+   Zunächst inspect wählen und die D1-Ausgabe prüfen. Danach migrate
+   und erst anschließend deploy ausführen.
+
+Bei migrate wird vor den SQL-Änderungen ein Cloudflare D1 Time-Travel-Bookmark
+im Workflow-Protokoll angezeigt; Cloudflare erstellt außerdem bei Migrationen
+eine Sicherung. Bei Bedarf die Datenbank nicht eigenständig zurücksetzen,
+sondern den gewünschten Wiederherstellungspunkt genau prüfen. Time Travel ist
+zeitlich begrenzt (7 Tage Workers Free, 30 Tage Workers Paid). Für eine
+langfristige Aufbewahrung einen separaten verschlüsselten Export verwenden.
+
+Vor deploy prüft der Workflow, dass die Tabelle trip_invites vorhanden ist.
+Nach dem Deployment prüft er den öffentlichen Login-Endpunkt.
+Das Wrangler-Flag keep_vars: true erhält bereits im Cloudflare-Dashboard
+gesetzte Variablen. Die GitHub Actions können die Produktivdatenbank verändern;
+die Freigabe muss bewusst erfolgen.
+
+GitHub Actions und das verfügbare GitHub-Plugin ermöglichen mir Codeänderungen,
+Testauswertung und das Lesen der Workflow-Protokolle. Der Cloudflare-Token wird
+nicht an ChatGPT weitergegeben. Das manuelle Starten des Produktionsworkflows
+bleibt eine GitHub-Bedienhandlung; ein direkter Cloudflare-Kontozugriff
+aus dem Chat ist damit nicht eingerichtet.
