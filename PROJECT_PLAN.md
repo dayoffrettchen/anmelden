@@ -16,7 +16,7 @@ E-Mail-Anmeldung mit einmaligem Link, Sitzungen und Logout ist implementiert. AD
 
 ## Nächste Umsetzung
 
-Echten E-Mail-Versand und Browserablauf prüfen. Stornierung, Umbuchung, Verwaltung mehrerer Ausflugsadmins und Google-Login ergänzen. Abholorte und Zeitfenster mit Routing prüfen und automatische Zuteilung ergänzen.
+Echten E-Mail-Versand und Browserablauf prüfen. Umbuchung und Google-Login ergänzen. Einladungen, Rollenverwaltung und Stornierungen sind im Feature-Branch implementiert und werden automatisiert geprüft. Vor produktiver Freischaltung D1-Migration 0003 ausführen. Abholorte und Zeitfenster mit Routing prüfen und automatische Zuteilung ergänzen.
 
 Automatische Umbuchungen brauchen eine Regel für unlösbare Änderungen, beispielsweise den Wegfall eines Autos. Bis diese Regel umgesetzt ist, darf eine Änderung keine bestätigte Buchung stillschweigend entfernen.
 
