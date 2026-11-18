@@ -25,12 +25,13 @@ async function request(path, body, method = body === undefined ? 'GET' : 'POST')
 async function refresh() {
   let state = await request('/api/auth/me');
   previewEnabled = state.localPreview;
+  document.querySelector('#debug-panel').hidden = !state.debugEnabled;
   if (previewEnabled && previewIdentity && !state.user) state = await request('/api/auth/me');
   document.querySelector('#preview-control').hidden = !previewEnabled;
   document.querySelector('#login-panel').hidden = Boolean(state.user);
   document.querySelector('#create-panel').hidden = !state.user?.isAdmin;
   document.querySelector('#logout').hidden = !state.user;
-  document.querySelector('#account').textContent = state.user ? 'Angemeldet als ' + state.user.name : '';
+  document.querySelector('#account').textContent = state.user ? (state.user.debug ? 'Debug aktiv · ' : 'Angemeldet als ') + state.user.name : '';
   await render(state.user ? await request('/api/trips') : []);
 }
 
@@ -269,4 +270,10 @@ document.querySelector('#logout').addEventListener('click', async () => {
     await refresh();
     status.textContent = 'Du bist abgemeldet.';
   } catch (error) { status.textContent = error.message; }
+});
+
+handleSubmit(document.querySelector('#debug-form'), async values => {
+  await request('/api/auth/debug', values);
+  previewIdentity = false;
+  return 'Debug-Testkonto angemeldet.';
 });

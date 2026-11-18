@@ -96,3 +96,32 @@ test('email login consumes links once, creates a session and revokes it on logou
   await call('logout', {});
   assert.equal((await (await call('me')).json()).user, null);
 });
+
+test('debug login is gated, restricted to test accounts and revoked by configuration changes', async () => {
+  const secret = 'test-only-secret-with-at-least-32-characters';
+  const env = { DB: database(), DEBUG_LOGIN_ENABLED: 'true', DEBUG_LOGIN_SECRET: secret };
+  let cookie = '';
+  const call = (path, body, overrides = {}) => worker.fetch(new Request('https://app.example/api/auth/' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: { Origin: 'https://app.example', 'Content-Type': 'application/json', Cookie: cookie },
+    body: body ? JSON.stringify(body) : undefined,
+  }), { ...env, ...overrides });
+  assert.equal((await call('debug', { secret, account: 'organizer' }, { DEBUG_LOGIN_ENABLED: 'false' })).status, 404);
+  assert.equal((await call('debug', { secret: 'wrong', account: 'organizer' })).status, 403);
+  assert.equal((await call('debug', { secret, account: 'mara' })).status, 403);
+  const login = await call('debug', { secret, account: 'organizer' });
+  assert.equal(login.status, 200);
+  cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.match(login.headers.get('set-cookie'), /Secure/);
+  const me = await (await call('me')).json();
+  assert.equal(me.user.isAdmin, true);
+  assert.equal(me.user.debug, true);
+  assert.equal(me.user.email, 'debug-organizer@example.test');
+  assert.equal((await (await call('me', undefined, { DEBUG_LOGIN_ENABLED: 'false' })).json()).user, null);
+  assert.equal((await (await call('me', undefined, { DEBUG_LOGIN_SECRET: secret + 'rotated' })).json()).user, null);
+  await call('logout', {});
+  assert.equal((await (await call('me')).json()).user, null);
+  const guest = await call('debug', { secret, account: 'participant' });
+  cookie = guest.headers.get('set-cookie').split(';')[0];
+  assert.equal((await (await call('me')).json()).user.isAdmin, false);
+});

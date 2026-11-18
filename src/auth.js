@@ -5,7 +5,13 @@ export const json = (data, status = 200, headers = {}) => Response.json(data, {
   status, headers: { 'Cache-Control': 'no-store', ...headers },
 });
 export const localPreview = (env, url) => env.LOCAL_PREVIEW === 'true' && ['localhost', '127.0.0.1'].includes(url.hostname);
+export const debugEnabled = env => env.DEBUG_LOGIN_ENABLED === 'true' && typeof env.DEBUG_LOGIN_SECRET === 'string' && env.DEBUG_LOGIN_SECRET.length >= 32;
+const debugAccounts = {
+  organizer: { email: 'debug-organizer@example.test', name: 'Debug · Organisation' },
+  participant: { email: 'debug-participant@example.test', name: 'Debug · Teilnehmer' },
+};
 export function isAdmin(user, env) {
+  if (user.debug && debugEnabled(env) && user.email === debugAccounts.organizer.email) return true;
   return (env.ADMIN_EMAILS ?? '').split(',').map(email => email.trim().toLowerCase()).includes(user.email.toLowerCase());
 }
 export async function readBody(request) {
@@ -25,7 +31,7 @@ function token() {
   return [...crypto.getRandomValues(new Uint8Array(32))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 function sessionToken(request) {
-  return request.headers.get('Cookie')?.match(/(?:^|;\s*)anmelden_session=([a-f0-9]{64})(?:;|$)/)?.[1];
+  return request.headers.get('Cookie')?.match(/(?:^|;\s*)anmelden_session=(d?[a-f0-9]{64})(?:;|$)/)?.[1];
 }
 function cookie(value, url, maxAge) {
   return 'anmelden_session=' + value + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + maxAge + (url.protocol === 'https:' ? '; Secure' : '');
@@ -37,16 +43,41 @@ export async function currentUser(request, env, url) {
   }
   const value = sessionToken(request);
   if (!value) return null;
-  return env.DB.prepare('SELECT u.id, u.name, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?')
-    .bind(await hash(value), Date.now()).first();
+  const debug = value.length === 65;
+  if (debug && !debugEnabled(env)) return null;
+  const digest = await hash(debug ? 'debug:' + env.DEBUG_LOGIN_SECRET + ':' + value : value);
+  const user = await env.DB.prepare('SELECT u.id, u.name, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?')
+    .bind(digest, Date.now()).first();
+  if (debug && user) {
+    if (!Object.values(debugAccounts).some(account => account.email === user.email)) return null;
+    user.debug = true;
+  }
+  return user;
 }
 export async function authRoute(request, env, url) {
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     const user = await currentUser(request, env, url);
-    return json({ user: user ? { ...user, isAdmin: isAdmin(user, env) } : null, localPreview: localPreview(env, url) });
+    return json({ user: user ? { ...user, isAdmin: isAdmin(user, env) } : null, localPreview: localPreview(env, url), debugEnabled: debugEnabled(env) });
   }
   if (request.method !== 'POST') throw new HttpError(404, 'Nicht gefunden.');
   const body = await readBody(request);
+  if (url.pathname === '/api/auth/debug') {
+    if (!debugEnabled(env)) throw new HttpError(404, 'Debug-Zugang ist deaktiviert.');
+    const supplied = typeof body.secret === 'string' ? body.secret : '';
+    const left = await hash(supplied);
+    const right = await hash(env.DEBUG_LOGIN_SECRET);
+    let difference = 0;
+    for (let i = 0; i < left.length; i++) difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
+    const account = Object.hasOwn(debugAccounts, body.account ?? '') ? debugAccounts[body.account] : null;
+    if (difference || !account) throw new HttpError(403, 'Debug-Zugangsdaten ungültig.');
+    const value = 'd' + token();
+    const digest = await hash('debug:' + env.DEBUG_LOGIN_SECRET + ':' + value);
+    await env.DB.batch([
+      env.DB.prepare('INSERT OR IGNORE INTO users(id, name, email) VALUES (?, ?, ?)').bind(crypto.randomUUID(), account.name, account.email),
+      env.DB.prepare('INSERT INTO sessions SELECT ?, id, ? FROM users WHERE email = ?').bind(digest, Date.now() + 7 * 86400_000, account.email),
+    ]);
+    return json({ signedIn: true }, 200, { 'Set-Cookie': cookie(value, url, 7 * 86400) });
+  }
   if (url.pathname === '/api/auth/request') {
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -99,7 +130,7 @@ export async function authRoute(request, env, url) {
   }
   if (url.pathname === '/api/auth/logout') {
     const value = sessionToken(request);
-    if (value) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await hash(value)).run();
+    if (value) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await hash(value.length === 65 ? 'debug:' + env.DEBUG_LOGIN_SECRET + ':' + value : value)).run();
     return json({ signedOut: true }, 200, { 'Set-Cookie': cookie('', url, 0) });
   }
   throw new HttpError(404, 'Nicht gefunden.');
