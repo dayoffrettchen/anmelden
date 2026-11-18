@@ -31,7 +31,11 @@ async function tripAccess(env, id, user, level = 'member') {
   if (level === 'owner' && trip.created_by !== user.id) throw new HttpError(403, 'Nur die erstellende Person darf das.');
   return trip;
 }
-async function invitationMail(env, url, to, trip) {
+function debugInvitation(user, email) {
+  return user.debug && ['debug-organizer@example.test', 'debug-participant@example.test'].includes(email);
+}
+async function invitationMail(env, url, to, trip, user) {
+  if (debugInvitation(user, to)) return;
   if (localPreview(env, url)) return;
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM || env.APP_ORIGIN !== url.origin) {
     throw new HttpError(503, 'Der E-Mail-Versand ist noch nicht eingerichtet.');
@@ -166,14 +170,14 @@ export async function tripsRoute(request, env, url, user) {
     const trip = await tripAccess(env, invite[1], user, 'organizer');
     const body = await readBody(request);
     const email = emailAddress(body.email);
-    if (!localPreview(env, url) && (!env.RESEND_API_KEY || !env.EMAIL_FROM || env.APP_ORIGIN !== url.origin)) {
+    if (!debugInvitation(user, email) && !localPreview(env, url) && (!env.RESEND_API_KEY || !env.EMAIL_FROM || env.APP_ORIGIN !== url.origin)) {
       throw new HttpError(503, 'Der E-Mail-Versand ist noch nicht eingerichtet.');
     }
     await env.DB.prepare(
       "INSERT INTO trip_invites (trip_id, email, role, invited_by, created_at) VALUES (?, ?, 'participant', ?, ?) " +
       'ON CONFLICT(trip_id, email) DO UPDATE SET invited_by = excluded.invited_by'
     ).bind(trip.id, email, user.id, Date.now()).run();
-    await invitationMail(env, url, email, trip);
+    await invitationMail(env, url, email, trip, user);
     return json({ invited: true, previewOnly: localPreview(env, url) }, 201);
   }
 

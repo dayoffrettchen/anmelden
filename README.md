@@ -91,3 +91,12 @@ Testauswertung und das Lesen der Workflow-Protokolle. Der Cloudflare-Token wird
 nicht an ChatGPT weitergegeben. Das manuelle Starten des Produktionsworkflows
 bleibt eine GitHub-Bedienhandlung; ein direkter Cloudflare-Kontozugriff
 aus dem Chat ist damit nicht eingerichtet.
+
+
+## Debug-Zugang ohne E-Mail
+
+Zum Aktivieren in den Worker-Einstellungen DEBUG_LOGIN_ENABLED auf true setzen und DEBUG_LOGIN_SECRET als Secret mit einem zufällig generierten Wert von mindestens 32 Zeichen hinterlegen. Danach erscheint der Debug-Zugang. Das Passwort kann im Passwortmanager gespeichert werden. Es wird von der App weder in URLs noch im localStorage abgelegt.
+
+Zwei feste Testkonten stehen bereit. Organisation (debug-organizer@example.test) kann Ausflüge anlegen, Teilnehmer (debug-participant@example.test) nutzt die normalen Einladungs- und Buchungsrechte. Für den Durchlauf einen Testausflug erstellen, debug-participant@example.test einladen und zum Teilnehmerkonto wechseln. Einladungen zwischen diesen Debug-Konten benötigen keinen E-Mail-Versand. Für andere Empfänger gelten die normalen Versandregeln.
+
+Die Sitzung hält sieben Tage. DEBUG_LOGIN_ENABLED=false oder ein Wechsel des Secrets sperrt bereits ausgestellte Debug-Sitzungen sofort bei der nächsten Anfrage. Der Modus ist standardmäßig aus. Testdaten liegen in derselben Datenbank und bleiben beim Abschalten erhalten.

@@ -26,7 +26,16 @@
     </form>
     <a id="preview-link" hidden>Lokalen Anmeldelink öffnen</a>
   </section>
-  <section id="verify-panel" hidden>
+  <section id="debug-panel" hidden>
+    <h2>Debug-Zugang</h2>
+    <p>Testkonten ohne E-Mail. Änderungen werden in dieser App gespeichert. Lade für Tests debug-participant@example.test ein und wechsle danach zum Teilnehmerkonto.</p>
+    <form id="debug-form">
+      <label>Testkonto <select name="account"><option value="organizer">Organisation</option><option value="participant">Teilnehmer</option></select></label>
+      <label>Debug-Passwort <input name="secret" type="password" autocomplete="current-password" required minlength="32"></label>
+      <button>Mit Testkonto anmelden</button>
+    </form>
+  </section>
+  <section id="verify-panel"  hidden>
     <h2>Anmeldung bestätigen</h2>
     <button id="verify">Jetzt anmelden</button>
   </section>
